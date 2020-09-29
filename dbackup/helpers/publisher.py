@@ -5,7 +5,7 @@ from datetime import datetime
 class Publisher(HAMqttClient):
 
     def __init__(self):
-        super(clienClass = 'dbackup', publishState = False)
+        super().__init__(clientClass = 'dbackup', publishState = False)
 
     def publishState(self, job, state):
         topic = self.formatTopic(f'{job}/state')

@@ -1,3 +1,4 @@
 paho-mqtt
 fasteners
-git+ssh://git@github.com/drdeg/dpytool.git
+#git+ssh://git@github.com/drdeg/dpytool.git
+git+https://github.com/drdeg/dpytool.git
