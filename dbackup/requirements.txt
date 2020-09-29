@@ -1,0 +1,3 @@
+paho-mqtt
+fasteners
+git+ssh://git@github.com/drdeg/dpytool.git
