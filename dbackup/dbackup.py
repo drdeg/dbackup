@@ -289,7 +289,7 @@ class DBackup:
         if name is None:
             name = self.today
 
-        if location.isLocal():
+        if location.isLocal:
             toName = os.path.join(location.path, name)
             fromName = toName+incompleteSuffix
             logging.debug('Moving %s to %s', fromName, toName)
@@ -298,7 +298,7 @@ class DBackup:
                 logging.debug('Replacing backup %s', toName)
                 shutil.rmtree(toName)
             os.rename(fromName, toName)
-        elif location.isRemote():
+        elif location.isRemote:
             # Create the state file
             toName =  location.path+'/'+name
             fromName = toName+incompleteSuffix
@@ -506,7 +506,7 @@ class DBackup:
         cert = ''
         sshArgs = []
         
-        if location.isRemote():
+        if location.isRemote:
             # Init SSH settings
             cert = self.config[job].get('cert', None)
             if cert is None or not os.path.isfile(cert):
@@ -543,14 +543,14 @@ class DBackup:
         
         if backupsToRemove:
             logging.info("Removing outdated backups " + ', '.join(list(backupsToRemove)))
-            if location.isLocal():
+            if location.isLocal:
                 for d in backupsToRemove:
                     try:
                         logging.debug('Removing ' + os.path.join(self.config[job]['dest'], d))
                         shutil.rmtree(os.path.join(self.config[job]['dest'], d))
                     except PermissionError as e:
                         logging.error('Permission denied: %s', e.filename)
-            elif location.isRemote():
+            elif location.isRemote:
                 rmString = '"'+'" "'.join([location.path +'/'+ b for b in backupsToRemove])+'"'
                 cmd = sshArgs + location.sshUserHostArgs() + ['rm -rf '+rmString]
                 logging.debug('Remote command: '+ ' '.join(cmd))

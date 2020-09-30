@@ -84,6 +84,7 @@ function create_python_venv()
 # Parse arguments
 DEST=
 CLEAN_DEST=
+UPGRADE=
 while [[ $# -gt 0 ]]
 do
     case "$1" in
@@ -97,6 +98,9 @@ do
         ;;
     --backup)
         ENABLE_BACKUP=true
+        ;;
+    --upgrade)
+        UPGRADE=--upgrade
         ;;
     --clean)
         CLEAN_DEST=true
@@ -148,6 +152,7 @@ SRC_BASE="$(readlink -m ${SCRIPTDIR}/..)"
 if [[ ${CLEAN_DEST} ]]
 then
     echo "Cleaning ${DEST}"
+    ${SUDO} rm -rf "${DEST}"
 fi
 
 # Create destination directory if it doesn't exist
@@ -172,8 +177,8 @@ then
     # activate python environment
     #source "${VENV_DIR}/bin/activate"
 
-    ${SUDO} "${VENV_DIR}/bin/python3" -m pip install --upgrade pip wheel
-    ${SUDO} "${VENV_DIR}/bin/python3" -m pip install --upgrade -r ${DEST}/requirements.txt
+    ${SUDO} "${VENV_DIR}/bin/python3" -m pip install ${UPGRADE} pip wheel
+    ${SUDO} "${VENV_DIR}/bin/python3" -m pip install ${UPGRADE} -r ${DEST}/requirements.txt
 else
     log ERROR "Failed to install python environment in ${VENV_DIR}"
     exit 1
