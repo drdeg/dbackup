@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import logging
 
 def checkAge(dateStr, okLimitDays = 2):
@@ -17,7 +17,7 @@ def checkAge(dateStr, okLimitDays = 2):
         logging.debug('today is ' + datetime.now().isoformat())
         lastAge = datetime.now() - lastDate
         logging.debug('Age is ' + str(lastAge.days) + ' days')
-    
+
         if lastAge.days < okLimitDays:
             #logging.info('Backup is OK, age is ' + str(lastAge.seconds/3600/24) + ' days');
             return (True, lastDate)

@@ -3,7 +3,7 @@ import os
 import logging
 import subprocess
 
-from .errors import *
+from .errors import SshError
 
 class Location:
     """ Location is a class that handles local and remote RSYNC locations

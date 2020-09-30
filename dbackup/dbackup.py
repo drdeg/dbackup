@@ -134,7 +134,8 @@ class DBackup:
         return self.__today
 
     def initPublisher(self):
-        self.publisher = Publisher()
+        self.publisher = Publisher(simulate=self.args.simulate)
+        logging.debug(f'Connecting to {self.args.mqtt}:{self.args.port}')
         self.publisher.connect(self.args.mqtt, self.args.port)
 
     def checkJobAge(self, jobspec = None ):
@@ -145,6 +146,7 @@ class DBackup:
 
         """
         localState = configparser.ConfigParser()
+        logging.debug(f'Reading states from {self.localStateFileName}')
         localState.read(self.localStateFileName)
 
         goodJobs = []
@@ -367,10 +369,13 @@ class DBackup:
                 else:
                     logging.error('Destination location %s is not found. Tryin to create it.', dest)
                     # Try to create target directory if validation failed
-                    if not destLoc.create():
-                        logging.error('Failed to create destination path %s', destLoc)
-                        self.publisher.publishState(job, 'failed')
-                        continue
+                    if self.args.simulate:
+                        if not destLoc.create():
+                            logging.error('Failed to create destination path %s', destLoc)
+                            self.publisher.publishState(job, 'failed')
+                            continue
+                    else:
+                        logging.info(f'Simulated creation of {dest}')
                 
                 # Determine last backup for LinkTarget
                 linkTargetOpts = self.getLinkTargetOpts(destLoc, sshArgs)

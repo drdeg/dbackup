@@ -2,10 +2,11 @@
 #
 # Thin wrapper for running dbackup within a venv
 
+# Determine the script parent directory
 SCRIPTDIR="$( cd "$( dirname "${0}" )" >/dev/null && pwd )"
 
 # Source the virtual environment
-source ${SCRIPTDIR}/pyvenv/bin/activate
+. "${SCRIPTDIR}/pyvenv/bin/activate"
 
 # Invoke python
-python3 ${SCRIPTDIR}/dbackup.py
+python3 ${SCRIPTDIR}/dbackup.py "$@"
