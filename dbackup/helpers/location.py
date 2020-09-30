@@ -85,6 +85,7 @@ class Location:
     def _createRemote(self) -> bool:
         """ Creates a remote location """
         # Ensure that the remote target directory exists
+        assert self.sshArgs is not None
         cmd = self.sshArgs + self.sshUserHostArgs() + ['[ -d "' + self.path + '" ] || mkdir -p "' + self.path + '"']
         logging.debug('Remote command: '+ ' '.join(cmd))
         try:

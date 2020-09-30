@@ -316,6 +316,19 @@ class DBackup:
             logging.error('FinalizeBackup: Unexpected location type %s'%location.type)
             raise ArgumentError('Unexpected location type %s'%str(location.type))
 
+    def getSshArgs(self, job):
+        """ Compiles the argument list for ssh 
+        
+        Appends ssh key argument and any options defined in self.sshOpts
+        Arguments:
+          job (str) : ID of the particular job
+        """
+        cert = self.config[job].get('cert', None)
+        sshArgs = ['ssh']
+        if cert is not None:
+            sshArgs += ['-i', cert]
+            
+        return sshArgs + self.sshOpts
 
     def backup(self):
         
@@ -344,13 +357,15 @@ class DBackup:
                 logging.debug('Source is %s', source)
                 logging.debug('Destination is %s', dest)        # Check that certificat exists
                 self.publisher.publishState(job, 'running')
-                            
+
+                # BUG: If cert is not defined, sshArgs will be crap
                 cert = self.config[job].get('cert', None)
                 if cert is None or not os.path.isfile(cert):
                     logging.error('Missing SSH certificate')
                     self.publisher.publishState(job, 'failed')
                     continue
-                sshArgs = ['ssh','-i',cert] + self.sshOpts
+                #sshArgs = ['ssh','-i',cert] + self.sshOpts
+                sshArgs = self.getSshArgs(job)
                 
                 # Determine source and dest locations
                 dynamichost = getDynamicHost(self.config[job])
@@ -380,14 +395,19 @@ class DBackup:
                 # Determine last backup for LinkTarget
                 linkTargetOpts = self.getLinkTargetOpts(destLoc, sshArgs)
 
-                # rsync arguments
+                # Assemble rsync arguments
+                # TODO: Refactor this!!
                 rsyncSshArgs = []
                 if sourceLoc.isRemote or destLoc.isRemote:
+                    cert = self.config[job].get('cert', None)
+                    assert cert is not None, "A certificate is required for remote locations"
                     rsyncSshArgsList = ['-i',cert] + self.sshOpts
                     if sourceLoc.isRemote:
                         rsyncSshArgsList += ['-l', sourceLoc.user]
                     elif destLoc.isRemote:
-                        rsyncSshArgsList += ['-l', destLoc.user]    
+                        rsyncSshArgsList += ['-l', destLoc.user]
+
+                    # The ssh arguments are specified as a string where each argument is separated with a space
                     rsyncSshArgs = ["--rsh=ssh "+' '.join(rsyncSshArgsList)+""]
 
 
@@ -466,7 +486,7 @@ class DBackup:
         if self.publisher is not None:
             self.publisher.publishLastGood(job, lastGood)
 
-    def getBackups(self, location, sshArgs, includeAll = False):
+    def getBackups(self, location, includeAll = False):
         """ Get alist of backups in a location
         
         Normally, incomplete backups are excluded from the list
@@ -496,16 +516,16 @@ class DBackup:
             job, str : The config section that describes the backup job to clean
 
         """
-    
+
         # Determine dynamichost
         dynamichost = getDynamicHost(self.config[job])
-        location = Location(self.config[job]['dest'], dynamichost)
+        location = Location(self.config[job]['dest'], dynamichost, sshArgs=self.getSshArgs(job))
         logging.debug('Destination location path is ' + location.path)
         
         # Define variables for correct scoping
-        cert = ''
-        sshArgs = []
+        sshArgs = self.getSshArgs(job) if location.isRemote else []
         
+        """
         if location.isRemote:
             # Init SSH settings
             cert = self.config[job].get('cert', None)
@@ -513,9 +533,10 @@ class DBackup:
                 logging.error('Missing SSH certificate')
                 return False
             sshArgs = ['ssh','-i',cert] + self.sshOpts
+        """
             
         # List all files in dest folder
-        backups = self.getBackups(location, sshArgs, True)        
+        backups = self.getBackups(location, True)
         
         # Get config parameters
         daysToKeep = int(self.config[job].get('days', fallback=3))
