@@ -237,7 +237,7 @@ class DBackup:
         """
         # Get list of backups exculding incomplete
         try:
-            backups = self.getBackups(location, sshArgs, False)
+            backups = self.getBackups(location, False)
         except SshError:
             logging.warning('Could not determine existing backups at %s', location.path)
             return []
