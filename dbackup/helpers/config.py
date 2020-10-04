@@ -11,6 +11,6 @@ def getDynamicHost(jobConfig):
             dynamicIP = ipaddress.ip_address(dynamichost) # Throws ValueError if dynamichost is not a valid IP number
             logging.info('Dynamic ip address in %s is %s', jobConfig.name, dynamichost)
             return dynamichost
-        except ValueError as e:
+        except ValueError:
             logging.error('Dynamichost failed')
     return None

@@ -9,7 +9,7 @@ class Location:
     """ Location is a class that handles local and remote RSYNC locations
     
         user@host:path/to/location
-    
+
     """
     def __init__(self, spec, dynamichost = None, sshArgs = None):
         self.spec = spec
@@ -43,7 +43,7 @@ class Location:
                 
             logging.debug("Location is decoded as " + self.user+" at " + self.host + " in " + self.path)
         except:
-            logging.error('Invalid format of location: '+spec)    
+            logging.error('Invalid format of location: '+spec)
     
     @property
     def isLocal(self):
@@ -205,5 +205,39 @@ class Location:
         return None
 
     def listDirs(self):
-        """ List directories in the location """
+        """ List directories in the location 
+        
+        Returns:
+            A list of folder names: [ str ]
+        """
         return self._listDirLocal() if self.isLocal else self._listDirSsh()
+
+    def getBackups(self, includeAll = False):
+        """ Get alist of backups in the location
+        
+        Normally, incomplete backups are excluded from the list
+        unless includeAll is set to true
+
+        Returns a list of backups or Non if no backups are found. 
+        If an error occured, like ssh failure, False is returned
+        """
+
+        # List all files in dest folder
+        folderList = self.listDirs()
+
+        if folderList is not None:
+            # Filter out backup names
+            if includeAll:
+                dirNameRegex = re.compile(r'^\d{4}-\d{2}-\d{2}(' + incompleteSuffix + '|)$')
+            else:
+                dirNameRegex = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+            return list(filter(dirNameRegex.match, folderList))
+        else:
+            return None
+
+
+    def renameChild(self, oldName, newName):
+        pass
+
+    def deleteBackup(self, name):
+        pass
