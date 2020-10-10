@@ -1,49 +1,47 @@
 import logging
+from typing import List
 
-from dbackup.helpers import StateTracker
-from dbackup.helpers import Publisher
+from ..helpers import StateTracker
+from ..helpers import Publisher
+
+from ..job import Job
+
+import dbackup.resultcodes
 
 class Report:
 
-    def __init__(self, parent, publisher):
-        self.parent = parent
-        self.args = parent.args
-        self.config = parent.config
-
+    def __init__(self, publisher : Publisher, stateTracker : StateTracker):
         self.publisher = publisher
 
-        self._stateTracker = StateTracker(parent.args.statefile)
+        self.stateTracker = stateTracker
 
-    def execute(self):
+    def execute(self, jobs : List[ Job ]) -> int:
         """ Reports the current state of all jobs 
         
         Iterates over all jobs in the config and publishes
         the current state
         """
 
-        if not self.args.mqtt:
-            logging.warning('Pointless with report if mqtt broker is not specified')
-        
-        # Connect to MQTT and other publication receivers
-
-        jobList = self.config.sections() if self.args.job is None else [self.args.job]
         # Only check jobs that have both source and dest
-        jobList = list(filter(lambda job: 'dest' in self.config[job] and 'source' in self.config[job]), jobList)
 
-        for job in jobList:
+        result = dbackup.resultcodes.SUCCESS
+        for job in jobs:
             logging.debug('Checking job %s', job)
             try:
-                state, lastDate = self._stateTracker.checkJobAge(job)
+                state, lastDate = self.stateTracker.checkJobAge(job.name)
                 if not lastDate is None:
-                    self.publisher.publishLastGood(job, lastDate)
+                    self.publisher.publishLastGood(job.name, lastDate)
                 if state:
-                    self.publisher.publishState(job, 'finished')
-                    self.publisher.publish('backup/{}/state'.format(job), 'finished')
+                    self.publisher.publishState(job.name, 'finished')
+                    self.publisher.publish(f'backup/{job.name}/state', 'finished')
                 else:
-                    self.publisher.publishState(job, 'failed')
+                    self.publisher.publishState(job.name, 'failed')
             except KeyError:
                 logging.warning('No backup found for job %s', job)
-                self.publisher.publishState(job, 'failed')
+                self.publisher.publishState(job.name, 'failed')
+                result = dbackup.resultcodes.INVALID_JOB
         
         # Wait for publication before exiting
         self.publisher.waitForPublish()
+
+        return result

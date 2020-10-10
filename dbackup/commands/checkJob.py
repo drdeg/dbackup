@@ -1,19 +1,22 @@
 import configparser
 import logging
 
-from dbackup.helpers import checkAge
-from dbackup.helpers import StateTracker
+from ..helpers import checkAge
+from ..helpers import StateTracker
+
+from typing import List
+
+from ..job import Job
+
+import dbackup.resultcodes
 
 class CheckJob:
 
-    def __init__(self, parent):
-        self.parent = parent
-        self.config = parent.config
-        self.args = parent.args
+    def __init__(self, stateTracker : StateTracker):
 
-        self._stateTracker = StateTracker(parent.args.statefile)
+        self._stateTracker = stateTracker
 
-    def execute(self, jobspec = None ) -> bool:
+    def execute(self, jobs : List[ Job ] ) -> bool:
         """ Checks the age of job(s)
 
         Iterates over all jobs and checks if they are too old. Output
@@ -23,21 +26,10 @@ class CheckJob:
 
         """
 
-        jobspec = self.args.job
-
-        assert jobspec is None or isinstance(jobspec, str)
+        assert jobs is not None
 
         goodJobs = []
         badJobs = []
-        if jobspec is None:
-            # Iterate over all jobs in the config
-
-            # Filter only jobs that have both dest and source
-            jobs = list(filter(lambda job: 'dest' in self.config[job] and 'source' in self.config[job], self.config.sections()))
-
-        else: 
-            # Assume jobspec is a string
-            jobs = [jobspec]
 
         for job in jobs:
             
@@ -47,10 +39,10 @@ class CheckJob:
                 badJobs.append(job)
 
         if badJobs:
-            logging.warning('Bad jobs detected: ' + str(badJobs))
-            print('BAD: ' + ', '.join(badJobs))
-            return False
+            logging.warning('Bad jobs detected!' + ', '.join(map(lambda job : str(job),badJobs)))
+            print('BAD: ' + ', '.join(map(lambda job : str(job),badJobs)))
+            return dbackup.resultcodes.BAD_JOBS
         else:   # No bad jobs
-            logging.info('All jobs are OK: ' + str(goodJobs))
-            print('OK: ' + ', '.join(goodJobs))
-            return True
+            logging.info('All jobs are OK: ' + ", ".join(map(lambda job: str(job), goodJobs)))
+            print('OK: ' + ', '.join(map(lambda job: str(job), goodJobs)))
+            return dbackup.resultcodes.SUCCESS

@@ -1,18 +1,22 @@
-from dbackup.helpers import getDynamicHost
-from dbackup.helpers import Location
-from dbackup.helpers import ArgumentError
+from typing import List
+
+from ..helpers import getDynamicHost
+from ..location import Location
+from ..helpers import ArgumentError
 import shutil
 import subprocess
 import os
 import logging
 import re
 
-from dbackup import Job
+from ..job import Job
+
+import dbackup.resultcodes
 
 class Clean:
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, simulate = True):
+        self.simulate = simulate
 
     def CleanJob(self, job : Job):
         """ Cleans old backups from a job
@@ -22,17 +26,18 @@ class Clean:
 
         """
 
-        location = job.dest
-        # Determine dynamichost
-        logging.debug('Destination location path is ' + location.path)
+        assert isinstance(job, Job)
+        job.dest.simulate = self.simulate
+        assert job.dest.isRemote != job.dest.isLocal
+
+        logging.debug('Destination location path is ' + job.dest.path)
+        logging.debug('Destination is local:'+str(job.dest.isLocal))
         
         # List all files in dest folder
-        backups = location.getBackups(True)
+        backups = job.dest.getBackups(True)
         
         # Get config parameters
-        daysToKeep = int(self.config[job].get('days', fallback=3))
-        monthsToKeep = int(self.config[job].get('months', fallback=3))
-        logging.debug('Job %s is set to keep %d days and %d months', job, daysToKeep, monthsToKeep)
+        logging.debug('Job %s is set to keep %d days and %d months', str(job), job.daysToKeep, job.monthsToKeep)
                     
         if backups is None:
             logging.warning('No backups found for job %s', job)
@@ -43,8 +48,8 @@ class Clean:
         logging.debug('Backups: ' + ', '.join(allBackups))
         goodBackups = list(filter(re.compile(r'^\d{4}-\d{2}-\d{2}$').match, allBackups))
         #badBackups  = list(filter(re.compile(r'^\d{4}-\d{2}-\d{2}.+$').match, allBackups))
-        monthlyBackups = [ d for d in goodBackups if d[8:10] == '01'][0:monthsToKeep]
-        dailyBackups = goodBackups[0:daysToKeep]
+        monthlyBackups = [ d for d in goodBackups if d[8:10] == '01'][0:job.monthsToKeep]
+        dailyBackups = goodBackups[0:job.daysToKeep]
         logging.debug('Monthly backups: ' + ', '.join(monthlyBackups))
         logging.debug('Daily backups: ' + ', '.join(dailyBackups))
         
@@ -55,39 +60,22 @@ class Clean:
         
         if backupsToRemove:
             logging.info("Removing outdated backups " + ', '.join(list(backupsToRemove)))
-            if location.isLocal:
-                for d in backupsToRemove:
-                    try:
-                        logging.debug('Removing ' + os.path.join(self.config[job]['dest'], d))
-                        shutil.rmtree(os.path.join(self.config[job]['dest'], d))
-                    except PermissionError as e:
-                        logging.error('Permission denied: %s', e.filename)
-            elif location.isRemote:
-                rmString = '"'+'" "'.join([location.path +'/'+ b for b in backupsToRemove])+'"'
-                cmd = sshArgs + location.sshUserHostArgs() + ['rm -rf '+rmString]
-                logging.debug('Remote command: '+ ' '.join(cmd))
-
-                try:
-                    subprocess.check_output(cmd, stderr=subprocess.PIPE)
-                except subprocess.CalledProcessError as e:
-                    logging.debug('ssh failed %d: %s' %(e.returncode, e.stderr.decode("utf-8").rstrip()))
-                    logging.error('Clean of job %s failed', job)
-                    return False
+            job.dest.deleteChild(list(backupsToRemove))
                 
             logging.info('Cleaned job %s', job)
         else:
             logging.info('No backups to remove for job %s', job)
 
             
-    def execute(self, jobspec = None):
+    def execute(self, jobs : List[ Job ] ) -> int:
         """ Cleans a job, i.e. removes outdated backups
         Arguments
         ---------
-            jobspec is either a list of jobs or a single job or None to specify all jobs
+            jobs is a list of jobs to clean
         """
-        for job in self.config.sections() if jobspec is None else [jobspec]:
-            if job in self.config.sections():
-                logging.info('Cleaning %s', job)
-                self.CleanJob(job)
-            else:
-                raise ArgumentError(f'Job {job} is not found in the configuration')
+        result = dbackup.resultcodes.SUCCESS
+        for job in jobs:
+            logging.info(f'Cleaning {job}')
+            if not self.CleanJob(job):
+                result = dbackup.resultcodes.CLEAN_FAILED
+        return result

@@ -1,5 +1,5 @@
 import configparser
-from dbackup.job import Job
+from .job import Job
 
 class Config:
 
@@ -9,7 +9,25 @@ class Config:
 
         # Include only jobs that have botha source and dest field. This is to
         # skip the common seciton
-        jobs = filter(lambda job: 'dest' in self._config[job] and 'source' in self._config[job], self._config.sections())
+        self.jobNames = filter(lambda job: 'dest' in self._config[job] and 'source' in self._config[job], self._config.sections())
 
         # Iterate over all configuration files
-        self.jobs = [ Job(job, self._config[job]) for job in jobs ]
+        self._jobs = [ Job(job, self._config[job]) for job in self.jobNames ]
+
+        self.__stateTracker = None
+
+    def __getitem__(self, key) -> Job:
+        """ Finds the job with name key and returns it"""
+        for job in self._jobs:
+            if job.name == key:
+                return job
+        return None
+
+    def jobs(self):
+        """ Get a list of the jobs 
+        
+        Returns a list of [ Job ] objects
+        """
+
+        for job in self._jobs:
+            yield job

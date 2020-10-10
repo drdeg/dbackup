@@ -1,5 +1,8 @@
 from datetime import datetime
 import logging
+import time
+
+today = time.strftime( "%Y-%m-%d")
 
 def checkAge(dateStr, okLimitDays = 2):
     """ Checks if the age of a date is smaller than a limit

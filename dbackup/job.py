@@ -1,8 +1,22 @@
-from dbackup.helpers.location import Location
-
+import os
+from . import location
 
 class Job:
-    """ Defines a single job """
+    """ Defines a single backup job 
+    
+    Attributes:
+        cert (str) : Full path to certificate or None
+        dynamicHost (str) : The dynamic host name
+        rsyncArgs (list(str)) : Extra arguments to rsync command
+        daysToKeep (int) : Number of days to keep daily backups
+        monthsToKeep (int) : Number of months to keep monthly backups
+
+        source (Location) : Source location (the files to backup)
+        dest (Location) : Dest location (this is where the backups are stored)
+
+        execBefore (str) : A command to execute before backup or None
+        execAfter (str) : A command to execute after backup
+    """
 
     sshOpts = ['-o', 'PubkeyAuthentication=yes', '-o', 'PreferredAuthentications=publickey']
 
@@ -17,14 +31,37 @@ class Job:
 
         self.dynamicHost = jobConfig['dynamichost'] if 'dynamichost' in jobConfig else None
 
-        self.rsyncArgs = jobConfig['rsyncarg'].split(' ') if 'rsyncarg' in jobConfig else None
+        self.rsyncArgs = jobConfig['rsyncarg'].split(' ') if 'rsyncarg' in jobConfig else []
 
         self.daysToKeep = int(jobConfig['days']) if 'days' in jobConfig else 3
         self.monthsToKeep = int(jobConfig['months']) if 'months' in jobConfig else 3
 
-        self.source = Location(jobConfig['source'], dynamichost=self.dynamicHost)
-        self.dest = Location(jobConfig['dest'], dynamichost=self.dynamicHost)
+        self.source = location.factory(jobConfig['source'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs)
+        self.dest = location.factory(jobConfig['dest'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs)
 
+        self.execBefore = jobConfig['exec before'] if 'exec before' in jobConfig else None
+        self.execAfter = jobConfig['exec after'] if 'exec after' in jobConfig else None
+
+        assert isinstance(self.source, location.Location)
+        assert isinstance(self.dest, location.Location)
+
+    def __str__(self):
+        """ Implicit conversion to string """
+        return self.name
+
+    @property
+    def cert(self):
+        return self._cert
+
+    @cert.setter
+    def cert(self, cert):
+        if cert is not None:
+            assert os.path.isfile(cert)
+        self._cert = cert
+
+    @property
+    def id(self) -> str:
+        return self.name
 
     @property
     def sshArgs(self):
