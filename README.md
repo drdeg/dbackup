@@ -24,16 +24,25 @@ became quite complicated when I wanted to report status over MQTT as well.
 - Use ssh and key authentication for security
 - Keep n last daily backups
 - Keep m last monthly backups
+- Optionally run script before and/or after backup (e.g. sync Minecraft servers...)
 
 # Installation
 
-- Clone the repository
-- Run bin/install.sh
+Installation is probably easiest done by using pip. (I suggest that you install in a python virtual
+environment)
+```
+python3 -m pip install git://github.com/drdeg/dbackup.git
+```
+
+Alternatively, you could clone the entire repository, and have fun locally.
 
 # Usage
 
-Currently, the only documentation is to run ```dbackup.py --help```.
-TODO: Write usage instructions
+## Program arguments
+
+Currently, the only documentation is to run ```python3 -m dbackup --help```. It might give you
+enough instructions to be able to get going. You will though need to look at the example/template
+configuration in configurations/sample.ini
 
 ## Configuration
 

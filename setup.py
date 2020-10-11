@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dbackup-drdeg", # Replace with your own username
-    version="0.0.1-dev",
+    version="0.2.0",
     author="David Degerfeldt",
     author_email="david@degerfeldt.se",
     description="My backup solution",
@@ -19,5 +19,5 @@ setuptools.setup(
         "Operating System :: Linux",
     ],
     python_requires='>=3.6',
-    install_requires=['fasteners', 'paho-mqtt']
+    install_requires=['fasteners', 'paho-mqtt', 'dpytool']
 )
