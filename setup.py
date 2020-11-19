@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="dbackup-drdeg", # Replace with your own username
+    name="dbackup", # Replace with your own username
     version="0.2.0",
     author="David Degerfeldt",
     author_email="david@degerfeldt.se",
