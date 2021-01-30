@@ -6,10 +6,11 @@ class Job:
     
     Attributes:
         cert (str) : Full path to certificate or None
-        dynamicHost (str) : The dynamic host name
+        dynamicHost (str) : The dynamic host name or None
         rsyncArgs (list(str)) : Extra arguments to rsync command
         daysToKeep (int) : Number of days to keep daily backups
         monthsToKeep (int) : Number of months to keep monthly backups
+        sshArgs (list(str)) : ssh command line as a list of arguments. First is 'ssh'
 
         source (Location) : Source location (the files to backup)
         dest (Location) : Dest location (this is where the backups are stored)
@@ -32,10 +33,12 @@ class Job:
         self.dynamicHost = jobConfig['dynamichost'] if 'dynamichost' in jobConfig else None
 
         self.rsyncArgs = jobConfig['rsyncarg'].split(' ') if 'rsyncarg' in jobConfig else []
+        self.extraSshArgs =  jobConfig['ssharg'].split(' ') if 'ssharg' in jobConfig else []
 
         self.daysToKeep = int(jobConfig['days']) if 'days' in jobConfig else 3
         self.monthsToKeep = int(jobConfig['months']) if 'months' in jobConfig else 3
 
+        # Generate locations for source and dest. sshArgs are assembled below
         self.source = location.factory(jobConfig['source'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs)
         self.dest = location.factory(jobConfig['dest'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs)
 
@@ -72,5 +75,7 @@ class Job:
         sshArgs = ['ssh']
         if self.cert is not None:
             sshArgs += ['-i', self.cert]
-            
+        if self.extraSshArgs is not None:
+            sshArgs += self.extraSshArgs
+
         return sshArgs + self.sshOpts

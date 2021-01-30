@@ -19,7 +19,6 @@ import dbackup.job
 
 class Backup:
 
-    sshOpts = ['-o', 'PubkeyAuthentication=yes', '-o', 'PreferredAuthentications=publickey']
     rsyncOpts = ['--delete', '-avhF', '--numeric-ids']
 
     def __init__(self, publisher, stateTracker = None, simulate = False):
@@ -151,10 +150,9 @@ class Backup:
         linkTargetOpts = self.getLinkTargetOpts(job.dest)
 
         # Assemble rsync arguments
-        # TODO: Refactor this!!
-        rsyncSshArgs = []
+        # ssh args are assembled in job class.
+        rsyncSshArgsList = job.sshArgs
         assert job.cert is not None, "A certificate is required for remote locations"
-        rsyncSshArgsList = ['-i', job.cert] + self.sshOpts
         if job.source.isRemote:
             rsyncSshArgsList += ['-l', job.source.user]
         elif job.dest.isRemote:
