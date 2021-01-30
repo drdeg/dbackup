@@ -6,7 +6,7 @@
 # CONFIG FILE
 #
 # [common]
-# remote_host = lovlund.dyndns.org
+# remote_host = hostname.dyndns.org
 # remote_root = /srv/user1/mirror
 # remote_user = root
 # remote_url = ${remote_user}@${remote_host}:${remote_root}
@@ -37,7 +37,7 @@
 # dest = ${common:remote_url}/share/Software
 #
 # [MyckleBilder]
-# dynamichost = http://www.varukulla.se/reportip.php?query=myckle
+# dynamichost = http://anotherhost.com/reportip.php?query=myckle
 # source = root@dynamichost:/volume1/photo
 # dest = ${common:local_dest}/myckle/photo
 # rsyncarg = -z
