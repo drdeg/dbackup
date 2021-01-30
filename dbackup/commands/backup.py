@@ -33,8 +33,8 @@ class Backup:
             self.publishLastGood = self._publishLastGood
         else:
             # MQTT publishing disabled
-            self.publishState = lambda a, b, c : None
-            self.publishLastGood = lambda a, b, c : None
+            self.publishState = lambda a, b : None
+            self.publishLastGood = lambda a, b : None
 
         self._stateTracker = stateTracker
 
