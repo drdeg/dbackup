@@ -27,8 +27,22 @@ class Backup:
         self.simulate = simulate
 
         self.publisher = publisher
+        if publisher:
+            # MQTT publishing enabled
+            self.publishState = self._publishState
+            self.publishLastGood = self._publishLastGood
+        else:
+            # MQTT publishing disabled
+            self.publishState = lambda a, b, c : None
+            self.publishLastGood = lambda a, b, c : None
 
         self._stateTracker = stateTracker
+
+    def _publishState(self, job : dbackup.Job, state : str):
+        self.publisher.publishState(job, 'running')
+
+    def _publishLastGood(self, job : dbackup.Job, date):
+        self.publisher.publishLastGood(job, self.today)
 
     def getLinkTargetOpts(self, location : Location):
         """ Get rsync options for link target
@@ -119,7 +133,7 @@ class Backup:
         logging.info('Starting backup job \"%s\"', job)
         logging.debug('Source is %s', job.source.path)
         logging.debug('Destination is %s', job.dest.path)
-        self.publisher.publishState(job, 'running')
+        self.publishState(job, 'running')
 
         # Verify connection to source and destination
         try:
@@ -127,7 +141,7 @@ class Backup:
                 logging.debug('Source location %s is validated', str(job.source))
             else:
                 logging.error('Invalid source location %s', str(job.source))
-                self.publisher.publishState(job, 'failed')
+                self.publishState(job, 'failed')
                 return dbackup.resultcodes.INVALID_LOCATION
 
             if job.dest.validate():
@@ -138,7 +152,7 @@ class Backup:
                 if self.simulate:
                     if not job.dest.create():
                         logging.error('Failed to create destination path %s', str(job.dest))
-                        self.publisher.publishState(job, 'failed')
+                        self.publishState(job, 'failed')
                         return dbackup.resultcodes.FAILED_TO_CREATE_DESTINATION
                 else:
                     logging.info(f'Simulated creation of {str(job.dest.path)}')
@@ -151,11 +165,9 @@ class Backup:
 
         # Assemble rsync arguments
         # ssh args are assembled in job class.
-        rsyncSshArgsList = job.sshArgs
+        # Remove 'ssh command' from argument list
+        rsyncSshArgsList = job.sshArgs[1:]
 
-        # Remove 'ssh' from argument list
-        if rsyncSshArgsList[0] == 'ssh':
-            rsyncSshArgsList = rsyncSshArgsList[1:]
         assert job.cert is not None, "A certificate is required for remote locations"
         if job.source.isRemote:
             rsyncSshArgsList += ['-l', job.source.user]
@@ -195,8 +207,8 @@ class Backup:
 
         if backupOk :
             # Backup job completed successfully
-            self.publisher.publishState(job, 'finished')
-            self.publisher.publishLastGood(job, self.today)
+            self.publishState(job, 'finished')
+            self.publishLastGood(job, self.today)
             
             logging.debug('Updating local state tracker')
             if self._stateTracker is not None:
@@ -208,5 +220,5 @@ class Backup:
         else:
             # Backup failed
             logging.info('Backup job \"%s\" failed', job)
-            self.publisher.publishState(job, 'failed')
+            self.publishState(job, 'failed')
             return dbackup.resultcodes.RSYNC_FAILED

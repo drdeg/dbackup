@@ -71,6 +71,8 @@ class Job:
         """ Compiles the argument list for ssh 
         
         Appends ssh key argument and any options defined in self.sshOpts
+
+        First argument is ssh command (so full path can be specified)
         """
         sshArgs = ['ssh']
         if self.cert is not None:

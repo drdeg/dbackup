@@ -15,6 +15,8 @@ class Report:
 
         self.stateTracker = stateTracker
 
+        assert publisher is not None
+
     def execute(self, jobs : List[ Job ]) -> int:
         """ Reports the current state of all jobs 
         

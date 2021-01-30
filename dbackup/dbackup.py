@@ -137,9 +137,13 @@ class DBackup:
         It checks the self.args for MQTT broker configuration
         """
 
-        self.publisher = Publisher(simulate=self.args.simulate)
-        logging.debug(f'Connecting to {self.args.mqtt}:{self.args.port}')
-        self.publisher.connect(self.args.mqtt, self.args.port)
+        if self.args.mqtt:
+            self.publisher = Publisher(simulate=self.args.simulate)
+            logging.debug(f'Connecting to {self.args.mqtt}:{self.args.port}')
+            self.publisher.connect(self.args.mqtt, self.args.port)
+        else:
+            logging.debug('MQTT not configured')
+            self.publisher = None
 
     def parseArguments(self):
         parser = argparse.ArgumentParser(description='Backup tool based on RSYNC')
