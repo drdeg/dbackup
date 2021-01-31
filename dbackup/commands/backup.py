@@ -41,7 +41,7 @@ class Backup:
         self._stateTracker = stateTracker
 
     def _publishState(self, job : dbackup.Job, state : str):
-        self.publisher.publishState(job, 'running')
+        self.publisher.publishState(job, state)
 
     def _publishLastGood(self, job : dbackup.Job, date):
         self.publisher.publishLastGood(job, self.today)
