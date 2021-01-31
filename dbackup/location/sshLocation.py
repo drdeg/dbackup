@@ -166,6 +166,8 @@ class SshLocation(Location):
             if not self.simulate:
                 output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
                 logging.debug('ssh output: ' + output.decode("utf-8").rstrip())
+            else:
+                logging.debug('simulated')
 
         except subprocess.CalledProcessError as e:
             logging.debug('ssh failed %d: %s' %(e.returncode, e.stderr.decode("utf-8").rstrip()))

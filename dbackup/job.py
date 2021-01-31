@@ -21,7 +21,7 @@ class Job:
 
     sshOpts = ['-o', 'PubkeyAuthentication=yes', '-o', 'PreferredAuthentications=publickey']
 
-    def __init__(self, name, jobConfig):
+    def __init__(self, name, jobConfig, simulate = False):
 
         assert 'source' in jobConfig
         assert 'dest' in jobConfig
@@ -39,8 +39,8 @@ class Job:
         self.monthsToKeep = int(jobConfig['months']) if 'months' in jobConfig else 3
 
         # Generate locations for source and dest. sshArgs are assembled below
-        self.source = location.factory(jobConfig['source'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs)
-        self.dest = location.factory(jobConfig['dest'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs)
+        self.source = location.factory(jobConfig['source'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs, simulate=simulate)
+        self.dest = location.factory(jobConfig['dest'], dynamichost=self.dynamicHost, sshArgs=self.sshArgs, simulate=simulate)
 
         self.execBefore = jobConfig['exec before'] if 'exec before' in jobConfig else None
         self.execAfter = jobConfig['exec after'] if 'exec after' in jobConfig else None
@@ -51,6 +51,16 @@ class Job:
     def __str__(self):
         """ Implicit conversion to string """
         return self.name
+
+    @property
+    def simulate(self):
+        return self._simulate
+
+    @simulate.setter
+    def simulate(self, simulate):
+        self.source.simulate = simulate
+        self.dest.simulate = simulate
+        self._simulate = simulate
 
     @property
     def cert(self):

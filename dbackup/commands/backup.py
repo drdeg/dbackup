@@ -29,10 +29,12 @@ class Backup:
         self.publisher = publisher
         if publisher:
             # MQTT publishing enabled
+            logging.debug('MQTT status reporting for backup job is enabled')
             self.publishState = self._publishState
             self.publishLastGood = self._publishLastGood
         else:
             # MQTT publishing disabled
+            logging.debug('MQTT status reporting for backup job is disabled')
             self.publishState = lambda a, b : None
             self.publishLastGood = lambda a, b : None
 
@@ -129,6 +131,9 @@ class Backup:
 
         assert isinstance(job.source, dbackup.location.Location)
         assert isinstance(job.dest, dbackup.location.Location)
+
+        assert self.simulate == job.source.simulate
+        assert self.simulate == job.dest.simulate
 
         logging.info('Starting backup job \"%s\"', job)
         logging.debug('Source is %s', job.source.path)

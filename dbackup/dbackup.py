@@ -139,10 +139,10 @@ class DBackup:
 
         if self.args.mqtt:
             self.publisher = Publisher(simulate=self.args.simulate)
-            logging.debug(f'Connecting to {self.args.mqtt}:{self.args.port}')
+            logging.info(f'Connecting to {self.args.mqtt}:{self.args.port}')
             self.publisher.connect(self.args.mqtt, self.args.port)
         else:
-            logging.debug('MQTT not configured')
+            logging.info('MQTT not configured')
             self.publisher = None
 
     def parseArguments(self):
@@ -184,9 +184,12 @@ class DBackup:
         return cmdReport.execute(jobs)
     
     def commandBackup(self, jobs) -> int:
+        result = 0
         logging.debug('Backup requested')
         # Create lock file for backups
+        logging.debug('Aquiring interprocess lock /tmp/backup.lock')
         with fasteners.InterProcessLock("/tmp/backup.lock"):
+            logging.debug('Locked /tmp/backup.lock')
             self.initPublisher()
             cmdBackup = dbackup.commands.Backup(
                 publisher = self.publisher,
@@ -194,15 +197,14 @@ class DBackup:
                 simulate = self.args.simulate)
             if self.args.clean:
                 cmdClean = dbackup.commands.Clean(simulate = self.args.simulate)
-            result = 0
+
             for job in jobs:
                 result = max(result, cmdBackup.execute(job))
                 if self.args.clean:
                     cmdClean.execute([job])
 
-            return result
-
-
+        logging.debug('Releasing interprocess lock /tmp/backup.lock')
+        return result
 
     def executeCommand(self, command, jobs) -> int:
         if command is None:
@@ -221,7 +223,7 @@ class DBackup:
 
     def run(self):
 
-        # Parse arguments
+        # Parse arguments 
         self.parseArguments()
 
         # Init logging
@@ -229,7 +231,7 @@ class DBackup:
 
         # Parse the configuration file
         logging.debug('Using config file %s', self.args.configfile)
-        self.config = Config(self.args.configfile)
+        self.config = Config(self.args.configfile, self.args.simulate)
 
         # Init state tracker
         with StateTracker(self.args.statefile) as stateTracker:

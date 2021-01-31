@@ -3,7 +3,7 @@ from .job import Job
 
 class Config:
 
-    def __init__(self, filePath):
+    def __init__(self, filePath, simulate = False):
         self._config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         self._config.read(filePath)
 
@@ -12,7 +12,7 @@ class Config:
         self.jobNames = filter(lambda job: 'dest' in self._config[job] and 'source' in self._config[job], self._config.sections())
 
         # Iterate over all configuration files
-        self._jobs = [ Job(job, self._config[job]) for job in self.jobNames ]
+        self._jobs = [ Job(job, self._config[job], simulate=simulate) for job in self.jobNames ]
 
         self.__stateTracker = None
 
