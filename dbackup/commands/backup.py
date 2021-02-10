@@ -152,15 +152,18 @@ class Backup:
             if job.dest.validate():
                 logging.debug('Destination location %s is validated', str(job.dest))
             else:
-                logging.error('Destination location %s is not found. Tryin to create it.', str(job.dest))
+                logging.debug('Destination location %s is not found. Tryin to create it.', str(job.dest))
                 # Try to create target directory if validation failed
                 if self.simulate:
-                    if not job.dest.create():
+                    logging.info(f'Simulated creation of {str(job.dest.path)}')
+                else:
+                    if job.dest.create():
+                        logging.info('Created destination directory %s.', str(job.dest))
+                    else:
                         logging.error('Failed to create destination path %s', str(job.dest))
                         self.publishState(job, 'failed')
                         return dbackup.resultcodes.FAILED_TO_CREATE_DESTINATION
-                else:
-                    logging.info(f'Simulated creation of {str(job.dest.path)}')
+                    
         except SshError as e:
             logging.error(e.message)
             return dbackup.resultcodes.SSH_ERROR

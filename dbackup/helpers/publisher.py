@@ -53,4 +53,3 @@ class Publisher(HAMqttClient):
             self.publish(topic, dateStr)
         else:
             logging.debug('^SIMULATED^')
-        

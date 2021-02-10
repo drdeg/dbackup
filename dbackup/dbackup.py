@@ -203,14 +203,19 @@ class DBackup:
                 if self.args.clean:
                     cmdClean.execute([job])
 
+
         logging.debug('Releasing interprocess lock /tmp/backup.lock')
         return result
 
     def executeCommand(self, command, jobs) -> int:
-        if command is None:
-            return self.commandBackup(jobs)
-        else:
-            return self.__commands[command](jobs)
+        # Execute the command. It may init the publisher
+        result = self.commandBackup(jobs) if command is None else self.__commands[command](jobs)
+
+        # Wait for publisher to publish any remaining messages
+        if self.publisher:
+            self.publisher.waitForPublish()
+        
+        return result
 
     def getJobs(self) -> List[ Job ]:
         """ Get a list of the jobs as specified by arguments """

@@ -33,7 +33,7 @@ class LocalLocation(Location):
         if os.path.exists(self.path):
             return True
         else:
-            logging.info("Creating local folder "+self.path)
+            logging.debug("Creating local folder "+self.path)
             try:
                 if not self.simulate:
                     os.makedirs(self.path)

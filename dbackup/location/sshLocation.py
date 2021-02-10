@@ -74,7 +74,8 @@ class SshLocation(Location):
             output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             logging.debug('ssh-keygen result code is %d'%(output.returncode))
             if output.returncode != 0:
-                logging.info('SSH host key not known for %s. Adding it to the known_hosts file.'%(self.host))
+                logging.info('SSH host key not known for %s. Consider adding it to the known_hosts file.'%(self.host))
+                # TODO: Automate this!
                 sshKnownHostArgs += [ '-o', 'StrictHostKeyChecking=no']
             else:
                 logging.debug('SSH host %s is already known'%(self.host))
@@ -99,12 +100,12 @@ class SshLocation(Location):
 
             # subprocess.check_output raises CalledProcessError if return code of cmd is nonzero, so if
             # execution continues here, the folder exists
-            logging.debug('Target directory %s on remote host %s exists'%(self.path, self.host))
+            logging.debug('Directory %s on remote host %s exists'%(self.path, self.host))
             return True
 
         except subprocess.CalledProcessError as e:
             # The dest folder doesn't exist
-            logging.info('Target directory %s doesn''t exist on remote host %s'%(self.path, self.host))
+            logging.info('Directory %s doesn''t exist on remote host %s'%(self.path, self.host))
             return False
 
         return False
