@@ -38,7 +38,7 @@ class Publisher(HAMqttClient):
         topic = self.formatTopic(f'{str(job)}/state')
         logging.debug(f'Publishing state {topic}:{str(state).lower()}')
         if not self.simulate:
-            self.publish(topic, str(state).lower())
+            self.publish(topic, str(state).lower(), retain=True)
         else:
             logging.debug('^SIMULATED^')
 
@@ -50,6 +50,6 @@ class Publisher(HAMqttClient):
             dateStr = str(lastGood).lower()
         logging.debug(f'Publishing last good {topic}:{dateStr}')
         if not self.simulate:
-            self.publish(topic, dateStr)
+            self.publish(topic, dateStr, retain=True)
         else:
             logging.debug('^SIMULATED^')

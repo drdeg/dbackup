@@ -41,10 +41,10 @@ class Backup:
         self._stateTracker = stateTracker
 
     def _publishState(self, job : dbackup.Job, state : str):
-        self.publisher.publishState(job, state, retain=True)
+        self.publisher.publishState(job, state)
 
     def _publishLastGood(self, job : dbackup.Job, date):
-        self.publisher.publishLastGood(job, self.today, retain=True)
+        self.publisher.publishLastGood(job, self.today)
 
     def getLinkTargetOpts(self, location : Location):
         """ Get rsync options for link target
