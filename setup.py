@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="dbackup", # Replace with your own username
-    version="0.3.5",
+    version="0.3.6",
     author="David Degerfeldt",
     author_email="david@degerfeldt.se",
     description="My backup solution",

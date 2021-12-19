@@ -199,7 +199,9 @@ class DBackup:
                 cmdClean = dbackup.commands.Clean(simulate = self.args.simulate)
 
             for job in jobs:
-                result = max(result, cmdBackup.execute(job))
+                jobResult = cmdBackup.execute(job)
+                logging.debug("Result for job is {jobResult}")
+                result = max(result, jobResult)
                 if self.args.clean:
                     cmdClean.execute([job])
 

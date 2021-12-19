@@ -140,6 +140,12 @@ class Backup:
         logging.debug('Destination is %s', job.dest.path)
         self.publishState(job, 'running')
 
+        # Execute any pre-backup tasks
+        # This must be done before source or dest is validated, as the pre-jobs may create them!
+        if job.execBefore is not None:
+            logging.info("Executing " + job.execBefore)
+            os.system(job.execBefore)
+
         # Verify connection to source and destination
         try:
             if job.source.validate():
@@ -184,12 +190,6 @@ class Backup:
 
         # The ssh arguments are specified as a string where each argument is separated with a space
         rsyncSshArgs = ["--rsh=ssh "+' '.join(rsyncSshArgsList)+""]
-
-
-        # Execute any pre-backup tasks
-        if job.execBefore is not None:
-            logging.info("Executing " + job.execBefore)
-            os.system(job.execBefore)
 
         # Do the work
         rsync = ['rsync'] + self.rsyncOpts + job.rsyncArgs + \
