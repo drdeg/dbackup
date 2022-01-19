@@ -53,3 +53,11 @@ Anyway, a ini-file-ish format is used, where each section corresponds to a backu
  - The ```[common]``` section is used to specify variables that can be used in the other sections.
 
 TODO: Document the parameters in the configuration file
+
+# Development
+
+- Create python environment in any directory
+- install the module as an editable package with
+```bash
+python3 -m pip install --editable path/to/dbackuprepo
+```

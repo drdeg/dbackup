@@ -1,16 +1,34 @@
 import os
+import re
 from . import location
+from pathlib import Path
 
 class Job:
     """ Defines a single backup job 
     
+    Job configuration contains the following options:
+        source
+        dest
+        sshport
+        sshhostkeyfile
+        rsyncarg
+        dynamichost (deprecated)
+        ssharg
+        days
+        months
+        exec before
+        exec after
+
+
     Attributes:
         cert (str) : Full path to certificate or None
         dynamicHost (str) : The dynamic host name or None
         rsyncArgs (list(str)) : Extra arguments to rsync command
         daysToKeep (int) : Number of days to keep daily backups
         monthsToKeep (int) : Number of months to keep monthly backups
-        sshArgs (list(str)) : ssh command line as a list of arguments. First is 'ssh'
+        sshPort (int) : The ssh port
+        sshHostKeyFile (str) : path to the ssh host key file to use or None if not specified
+        sshArgs (list(str)) : ssh arguments
 
         source (Location) : Source location (the files to backup)
         dest (Location) : Dest location (this is where the backups are stored)
@@ -21,12 +39,13 @@ class Job:
 
     sshOpts = ['-o', 'PubkeyAuthentication=yes', '-o', 'PreferredAuthentications=publickey']
 
-    def __init__(self, name, jobConfig, simulate = False):
+    def __init__(self, name : str, jobConfig : dict, simulate = False):
 
         assert 'source' in jobConfig
         assert 'dest' in jobConfig
 
         self.name = name
+        self.__rawConfig = jobConfig.copy()
 
         self.cert = jobConfig['cert'] if 'cert' in jobConfig else None
 
@@ -34,6 +53,7 @@ class Job:
 
         self.rsyncArgs = jobConfig['rsyncarg'].split(' ') if 'rsyncarg' in jobConfig else []
         self.extraSshArgs =  jobConfig['ssharg'].split(' ') if 'ssharg' in jobConfig else []
+        #self.sshHostKeyFile = jobConfig['sshhostkeyfile'] if 'sshhostkeyfile' in jobConfig else None
 
         self.daysToKeep = int(jobConfig['days']) if 'days' in jobConfig else 3
         self.monthsToKeep = int(jobConfig['months']) if 'months' in jobConfig else 3
@@ -77,6 +97,39 @@ class Job:
         return self.name
 
     @property
+    def sshPort(self):
+        """ Determines the ssh port.
+        
+        Port is either specified as explicit argument but is overridden by
+        estra arguments in sshargs
+        """
+
+        if '-p' in self.extraSshArgs:
+            # -p flag is speficied in extra args, port is in next argument
+            sshPort = int(self.extraSshArgs[self.extraSshArgs.index('-p') + 1])
+        elif 'sshport' in self.__rawConfig:
+            # Use the sshport argument
+            sshPort = int(self.__rawConfig['sshport'])
+        else:
+            sshPort = 22
+        return sshPort
+
+    @property
+    def sshHostKeyFile(self) -> Path:
+
+        # Check if UserHostKey is defined in arguments
+        r = re.compile("UserKnownHostsFile=(.*)")
+        fa = list(filter(r.match, self.extraSshArgs))
+        if fa:
+            m = r.match(fa[0])
+            hostKeyFile = m[1]
+            return Path(hostKeyFile)
+        elif 'sshhostkeyfile' in self.__rawConfig:
+            return Path(self.__rawConfig['sshhostkeyfile'])
+        else:
+            return None
+
+    @property
     def sshArgs(self):
         """ Compiles the argument list for ssh 
         
@@ -84,9 +137,13 @@ class Job:
 
         First argument is ssh command (so full path can be specified)
         """
-        sshArgs = ['ssh']
+        sshArgs = []
+        if '-p' not in self.extraSshArgs:
+            sshArgs += ['-p', str(self.sshPort)]
         if self.cert is not None:
             sshArgs += ['-i', self.cert]
+        if self.sshHostKeyFile:
+            sshArgs += ['-o', 'UserKnownHostsFile='+str(self.sshHostKeyFile)]
         if self.extraSshArgs is not None:
             sshArgs += self.extraSshArgs
 

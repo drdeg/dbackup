@@ -180,7 +180,7 @@ class Backup:
         # Assemble rsync arguments
         # ssh args are assembled in job class.
         # Remove 'ssh command' from argument list
-        rsyncSshArgsList = job.sshArgs[1:]
+        rsyncSshArgsList = job.sshArgs[1:] if job.sshArgs[0] == 'ssh' else job.sshArgs
 
         assert job.cert is not None, "A certificate is required for remote locations"
         if job.source.isRemote:

@@ -12,12 +12,18 @@ class SshLocation(Location):
     Location specification has the form [user]@[host]:(path)
     """
 
-    def __init__(self, spec, dynamichost = None, sshArgs = None, simulate = False):
+    def __init__(self, spec, dynamichost = None,  sshArgs = None, simulate = False):
         super().__init__(spec, dynamichost, typeName='remote', simulate = simulate)
+
+        # sshArgs contains -p [port] -i userCert -o UserHostKey and so on. 
+        # There is no need to append them to the sshArgs list
 
         self.dynamicHost = dynamichost
         self.sshArgs = sshArgs
         assert sshArgs is not None
+
+        self.hostKeyFile = self._determineHostKeyFile(sshArgs)      # Can be None if not specified in arguments
+        self.sshPort = self._determineSshPort(sshArgs)
 
         # Decode user, host and path from spec
         self.__DecodeRemoteLocation(spec, dynamichost)
@@ -45,6 +51,46 @@ class SshLocation(Location):
             logging.error('Invalid format of location: '+spec)
             print(e)
 
+    def _determineHostKeyFile(self, sshArgs) -> str:
+        """ Parses the ssh argument list and tries to find
+        """
+        # Check if UserHostKey is defined in arguments
+        r = re.compile("UserKnownHostsFile=(.*)")
+        fa = list(filter(r.match, sshArgs))
+        if fa:
+            m = r.match(fa[0])
+            hostKeyFile = m[1]
+            logging.debug(f"Identified UserKnownHostsFile={hostKeyFile}")
+            return hostKeyFile
+        else:
+            return None
+
+    def _determineSshPort(self, sshArgs : list) -> int:
+
+        try:
+            # Take the argument following '-p' in argument list
+            sshPort = int(sshArgs[ sshArgs.index('-p') + 1])
+        except:
+            logging.debug("Using default ssh port")
+            sshPort = 22
+
+        return sshPort
+
+    def _buildSshArgs(self) -> list:
+        """ Builds the ssh argument list
+        
+        """
+
+        # Assumes that the object owner (job) already has added -o UserHostKey
+
+        assert '-p' in self.sshArgs, 'Expected -p to be in the ssh argument list'
+        cmd = []
+        if self.user and self.host and '-l' not in self.sshArgs:
+            cmd +=  ['-l', self.user]
+        if self.sshKnownHostArgs:
+            cmd += self._sshKnownHostArgs
+        
+
     def rsyncPath(self, subpath = None):
         return self.host + ':' + (self.path if subpath is None else os.path.join(self.path, subpath))
 
@@ -56,6 +102,59 @@ class SshLocation(Location):
             logging.warning("Username and host is not specified")
             return []
 
+    def _checkKnownHost(self):
+
+        # Check if the host is already known
+        cmd = ['ssh-keygen', '-l', '-F', self.host]
+        if self.hostKeyFile:
+            cmd += ['-f', self.hostKeyFile]
+
+        logging.debug('ssh-keygen command: '+' '.join(cmd))
+        try:
+            output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logging.debug('ssh-keygen result code is %d'%(output.returncode))
+            if output.returncode != 0:
+                logging.info('SSH host key not known for %s. Consider adding it to the known_hosts file.'%(self.host))
+                # TODO: Automate this!
+                self._sshKnownHostArgs += [ '-o', 'StrictHostKeyChecking=no']
+            else:
+                logging.debug('SSH host %s is already known'%(self.host))
+                self._sshKnownHostArgs = None
+        except subprocess.CalledProcessError as e:
+                logging.error('Failed ssh-keygen %d: %s'%(e.returncode, e.stderr.decode("utf-8").rstrip()))
+
+    def _checkConnection(self):
+        """ Tries to connect to the location """
+        # Verify connection to remote host using ssh
+        cmd = ['ssh'] + self._buildSshArgs() + ['hostname']
+        logging.debug('Remote command: '+' '.join(cmd))
+        try:
+            output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+            logging.debug('ssh output: ' + output.decode("utf-8").rstrip())
+        except subprocess.CalledProcessError as e:
+            raise SshError('SSH failed %d: %s' %(e.returncode, e.stderr.decode("utf-8").rstrip()))
+
+    def testFolder(self, folderPath) -> bool:
+        """ Test if the specified folder exists"""
+
+        try:
+            # TODO: Check if remote folder exists
+            # test -d path returns 0 if is directory, and 1 if it isn't a dir or doesn't exist
+            cmd = ['ssh'] + self._buildSshArgs() + ['test -d %s'%(folderPath)]
+            output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+
+            # subprocess.check_output raises CalledProcessError if return code of cmd is nonzero, so if
+            # execution continues here, the folder exists
+            logging.debug('Directory %s on remote host %s exists'%(folderPath, self.host))
+            return True
+
+        except subprocess.CalledProcessError as e:
+            # The dest folder doesn't exist
+            logging.info('Directory %s doesn''t exist on remote host %s'%(folderPath, self.host))
+            return False
+
+        return False
+
     def validate(self) -> bool:
         """ Validates ssh connection to the location
 
@@ -65,51 +164,17 @@ class SshLocation(Location):
         - Creates remote folder if it doesn't
         """
 
-        sshKnownHostArgs = []
-    
-        # Check if the host is already known
-        cmd = ['ssh-keygen', '-l', '-F', self.host]
-        logging.debug('ssh-keygen command: '+' '.join(cmd))
-        try:
-            output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            logging.debug('ssh-keygen result code is %d'%(output.returncode))
-            if output.returncode != 0:
-                logging.info('SSH host key not known for %s. Consider adding it to the known_hosts file.'%(self.host))
-                # TODO: Automate this!
-                sshKnownHostArgs += [ '-o', 'StrictHostKeyChecking=no']
-            else:
-                logging.debug('SSH host %s is already known'%(self.host))
-        except subprocess.CalledProcessError as e:
-                logging.error('Failed ssh-keygen %d: %s'%(e.returncode, e.stderr.decode("utf-8").rstrip()))
-                                
-        # Verify connection to remote host using ssh
-        cmd = self.sshArgs + sshKnownHostArgs + self.sshUserHostArgs() + ['hostname']
-        logging.debug('Remote command: '+' '.join(cmd))
-        try:
-            output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
-            logging.debug('ssh output: ' + output.decode("utf-8").rstrip())
-        except subprocess.CalledProcessError as e:
-            #logging.error('SSH failed %d: %s' %(e.returncode, e.stderr.decode("utf-8").rstrip()))
-            raise SshError('SSH failed %d: %s' %(e.returncode, e.stderr.decode("utf-8").rstrip()))
 
-        try:
-            # TODO: Check if remote folder exists
-            # test -d path returns 0 if is directory, and 1 if it isn't a dir or doesn't exist
-            cmd = self.sshArgs + sshKnownHostArgs + self.sshUserHostArgs() + ['test -d %s'%(self.path)]
-            output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+        # BUG: ssh uses the option -o UserKnownHostsFile=/etc/dbackup/known_hosts, but ssh-keygen
+        # uses -f /etc/dbackup/known_hosts. Need to scan ssh_args to implement this or refactor
+        # with more argument support
 
-            # subprocess.check_output raises CalledProcessError if return code of cmd is nonzero, so if
-            # execution continues here, the folder exists
-            logging.debug('Directory %s on remote host %s exists'%(self.path, self.host))
-            return True
+        # Updates the sshKnownHostArgs
+        self._checkKnownHost()
 
-        except subprocess.CalledProcessError as e:
-            # The dest folder doesn't exist
-            logging.info('Directory %s doesn''t exist on remote host %s'%(self.path, self.host))
-            return False
+        self._checkConnection()
 
-        return False
-
+        return self.testFolder(self.path)
 
     def create(self):
         """ Greates the location on the remote """
