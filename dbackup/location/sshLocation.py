@@ -60,8 +60,6 @@ class SshLocation(Location):
         assert '-p' in self.sshArgs, 'Expected -p to be in the ssh argument list'
         cmd = ['ssh']
         cmd += list(self.sshArgs)
-        #if self._sshKnownHostArgs:
-        #    cmd += self._sshKnownHostArgs
         if extraArgs:
             cmd += extraArgs
 
@@ -86,6 +84,9 @@ class SshLocation(Location):
     #        return []
 
     def _checkKnownHost(self):
+        """ ** DEPRECATED - DO NOT USE** """
+
+        assert False, 'Deprecated'
 
         # Check if the host is already known
         cmd = ['ssh-keygen', '-l', '-F', self.host]
@@ -141,19 +142,10 @@ class SshLocation(Location):
     def validate(self) -> bool:
         """ Validates ssh connection to the location
 
-        - Checks that the remote host is knowns
         - SSHs to the remote
         - Checks that the directory exists on the remote.
         - Creates remote folder if it doesn't
         """
-
-
-        # BUG: ssh uses the option -o UserKnownHostsFile=/etc/dbackup/known_hosts, but ssh-keygen
-        # uses -f /etc/dbackup/known_hosts. Need to scan ssh_args to implement this or refactor
-        # with more argument support
-
-        # Updates the sshKnownHostArgs
-        self._checkKnownHost()
 
         self._checkConnection()
 
