@@ -16,7 +16,11 @@ class SshArgs:
     mandatorySshArgs = ['-o', 'BatchMode=yes']
     #mandatorySshArgs = ['-o', 'PubkeyAuthentication=yes', '-o', 'PreferredAuthentications=publickey']
 
-    def __init__(self, jobConfig : dict):
+    def __init__(self, jobConfig):
+        """
+        
+        jobConfig (dict or ConfigSection):
+        """
 
         self.extraArgs = shlex.split(jobConfig['ssharg']) if 'ssharg' in jobConfig else []
         self._sshPort = self.__determinePort(jobConfig)
@@ -35,7 +39,7 @@ class SshArgs:
         else:
             return 22
 
-    def __determineHostKeyFile(self, jobConfig : dict) -> Path:
+    def __determineHostKeyFile(self, jobConfig) -> Path:
         r = re.compile("UserKnownHostsFile=(.*)")
         fa = list(filter(r.match, self.extraArgs))
         if fa:
@@ -43,7 +47,7 @@ class SshArgs:
             hostKeyFile = m[1]
             return Path(hostKeyFile)
         elif 'sshhostkeyfile' in jobConfig:
-            return Path(self.jobConfig['sshhostkeyfile'])
+            return Path(jobConfig['sshhostkeyfile'])
         else:
             return None
 

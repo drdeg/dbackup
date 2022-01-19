@@ -38,13 +38,12 @@ class Job:
     """
 
 
-    def __init__(self, name : str, jobConfig : dict, simulate = False):
+    def __init__(self, name : str, jobConfig, simulate = False):
 
         assert 'source' in jobConfig
         assert 'dest' in jobConfig
 
         self.name = name
-        self.__rawConfig = jobConfig.copy()
 
         self.cert = jobConfig['cert'] if 'cert' in jobConfig else None
 
