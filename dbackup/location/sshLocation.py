@@ -89,8 +89,8 @@ class SshLocation(Location):
 
         # Check if the host is already known
         cmd = ['ssh-keygen', '-l', '-F', self.host]
-        if self.hostKeyFile:
-            cmd += ['-f', self.hostKeyFile]
+        if self.sshArgs.hostKeyFile:
+            cmd += ['-f', str(self.sshArgs.hostKeyFile)]
 
         logging.debug('ssh-keygen command: '+' '.join(cmd))
         try:

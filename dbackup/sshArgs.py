@@ -98,6 +98,7 @@ class SshArgs:
 
     @property
     def hostKeyFile(self) -> Path:
+        """ Full path to the host keys filed or None if not specified"""
         return self._hostKeyFile
 
     @property
