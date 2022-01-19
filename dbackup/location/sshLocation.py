@@ -5,6 +5,7 @@ import os
 import re
 
 from ..helpers import SshError
+from ..sshArgs import SshArgs
 
 class SshLocation(Location):
     """ SSH based locations
@@ -12,26 +13,24 @@ class SshLocation(Location):
     Location specification has the form [user]@[host]:(path)
     """
 
-    def __init__(self, spec, dynamichost = None,  sshArgs = None, simulate = False):
-        super().__init__(spec, dynamichost, typeName='remote', simulate = simulate)
+    def __init__(self, spec,  sshArgs : SshArgs, simulate = False):
+        super().__init__(spec, typeName='remote', simulate = simulate)
 
         # sshArgs contains -p [port] -i userCert -o UserHostKey and so on. 
         # There is no need to append them to the sshArgs list
 
-        self.dynamicHost = dynamichost
-        self.sshArgs = sshArgs
-        assert sshArgs is not None
-
-        self.hostKeyFile = self._determineHostKeyFile(sshArgs)      # Can be None if not specified in arguments
-        self.sshPort = self._determineSshPort(sshArgs)
-
         # Decode user, host and path from spec
-        self.__DecodeRemoteLocation(spec, dynamichost)
+        self.__DecodeRemoteLocation(spec)
+
+        self.sshArgs = sshArgs
+        self.sshArgs.user = self.user
+
+        self._sshKnownHostArgs = None
 
     def __str__(self):
         return f'SshLocation:{self.user}@{self.host}:{self.path}'
 
-    def __DecodeRemoteLocation(self, spec, dynamichost):
+    def __DecodeRemoteLocation(self, spec):
         logging.debug('Decoding remote location %s', spec)
         try:
             m = re.match(r"^([^@:]*)@([^@:]*):(.*)$", spec)
@@ -39,68 +38,52 @@ class SshLocation(Location):
             self.host = m.group(2)
             self.path = m.group(3)
             logging.debug(f'user={self.user}, host={self.host}, path={self.path}')
-            if self.host == 'dynamichost':
-                if dynamichost is None:
-                    logging.warning('Dynamic host is used but not defined')
-                else:
-                    logging.debug('Replacing dynamichost with %s', dynamichost)
-                    self.host = dynamichost
-                
             logging.debug("Location is decoded as " + self.user+" at " + self.host + " in " + self.path)
         except Exception as e:
             logging.error('Invalid format of location: '+spec)
             print(e)
 
-    def _determineHostKeyFile(self, sshArgs) -> str:
-        """ Parses the ssh argument list and tries to find
-        """
-        # Check if UserHostKey is defined in arguments
-        r = re.compile("UserKnownHostsFile=(.*)")
-        fa = list(filter(r.match, sshArgs))
-        if fa:
-            m = r.match(fa[0])
-            hostKeyFile = m[1]
-            logging.debug(f"Identified UserKnownHostsFile={hostKeyFile}")
-            return hostKeyFile
-        else:
-            return None
+    def _buildSshCmd(self, command : str , extraArgs : list = None) -> list:
+        """ Builds the ssh command list
 
-    def _determineSshPort(self, sshArgs : list) -> int:
+        Assembled a ssh command honoring all arguments in sshArgs and sshKnownHostArg.
 
-        try:
-            # Take the argument following '-p' in argument list
-            sshPort = int(sshArgs[ sshArgs.index('-p') + 1])
-        except:
-            logging.debug("Using default ssh port")
-            sshPort = 22
+        Arguments
+        ---------
 
-        return sshPort
+        command (str): the command that should be executed on the remote host
+        extraArgs (list[str]): Any extra arguments for ssh that should be included
 
-    def _buildSshArgs(self) -> list:
-        """ Builds the ssh argument list
-        
         """
 
         # Assumes that the object owner (job) already has added -o UserHostKey
-
         assert '-p' in self.sshArgs, 'Expected -p to be in the ssh argument list'
-        cmd = []
-        if self.user and self.host and '-l' not in self.sshArgs:
-            cmd +=  ['-l', self.user]
-        if self.sshKnownHostArgs:
-            cmd += self._sshKnownHostArgs
-        
+        cmd = ['ssh']
+        cmd += list(self.sshArgs)
+        #if self._sshKnownHostArgs:
+        #    cmd += self._sshKnownHostArgs
+        if extraArgs:
+            cmd += extraArgs
+
+        # Append hostname
+        cmd += [self.host]
+
+        # Finally, add the command
+        cmd += [command]
+
+        logging.debug('Build ssh command: '+ ' '.join(cmd))
+        return cmd
 
     def rsyncPath(self, subpath = None):
         return self.host + ':' + (self.path if subpath is None else os.path.join(self.path, subpath))
 
-    def sshUserHostArgs(self):
-        """ Returns arguments needed for user and host arguments to SSH as a list"""
-        if self.user is not None and self.host is not None:
-            return ['-l', self.user, self.host]
-        else:
-            logging.warning("Username and host is not specified")
-            return []
+    #def sshUserHostArgs(self):
+    #    """ Returns arguments needed for user and host arguments to SSH as a list"""
+    #    if self.user is not None and self.host is not None:
+    #        return ['-l', self.user, self.host]
+    #    else:
+    #        logging.warning("Username and host is not specified")
+    #        return []
 
     def _checkKnownHost(self):
 
@@ -126,7 +109,7 @@ class SshLocation(Location):
     def _checkConnection(self):
         """ Tries to connect to the location """
         # Verify connection to remote host using ssh
-        cmd = ['ssh'] + self._buildSshArgs() + ['hostname']
+        cmd = self._buildSshCmd('hostname')
         logging.debug('Remote command: '+' '.join(cmd))
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -140,7 +123,7 @@ class SshLocation(Location):
         try:
             # TODO: Check if remote folder exists
             # test -d path returns 0 if is directory, and 1 if it isn't a dir or doesn't exist
-            cmd = ['ssh'] + self._buildSshArgs() + ['test -d %s'%(folderPath)]
+            cmd = self._buildSshCmd('test -d %s'%(folderPath))
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
 
             # subprocess.check_output raises CalledProcessError if return code of cmd is nonzero, so if
@@ -179,10 +162,8 @@ class SshLocation(Location):
     def create(self):
         """ Greates the location on the remote """
         
-        assert self.sshArgs is not None
+        cmd = self._buildSshCmd('[ -d "' + self.path + '" ] || mkdir -p "' + self.path + '"')
 
-        cmd = self.sshArgs + self.sshUserHostArgs() + ['[ -d "' + self.path + '" ] || mkdir -p "' + self.path + '"']
-        logging.debug('Remote command: '+ ' '.join(cmd))
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
             logging.debug('ssh output: ' + output.decode("utf-8").rstrip())
@@ -195,11 +176,7 @@ class SshLocation(Location):
     def listDir(self):
         """ List directories in the remote location """
 
-        assert self.sshArgs is not None
-        assert self.sshUserHostArgs() is not None
-
-        cmd = self.sshArgs + self.sshUserHostArgs() + ['ls -d "'+self.path+'/"*/ | xargs -r -L 1 basename']
-        logging.debug('Remote command: '+ ' '.join(cmd))
+        cmd = self._buildSshCmd('ls -d "'+self.path+'/"*/ | xargs -r -L 1 basename')
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
             folderList = output.decode("utf-8").splitlines()
@@ -226,8 +203,7 @@ class SshLocation(Location):
         fromPath = os.path.join(self.path, fromName)
         toPath = os.path.join(self.path, toName)
 
-        cmd = self.sshArgs + self.sshUserHostArgs() + ['rm -rf "'+toPath+'";mv "'+fromPath+'" "'+toPath+'"']
-        logging.debug('Remote command: '+ ' '.join(cmd))
+        cmd = self._buildSshCmd('rm -rf "'+toPath+'";mv "'+fromPath+'" "'+toPath+'"')
         try:
             if not self.simulate:
                 output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -252,9 +228,7 @@ class SshLocation(Location):
             rmString = '"'+'" "'.join([self.path +'/'+ n for n in name])+'"'
         else:
             rmString = '"'+self.path+'/'+name+'"'
-        cmd = self.sshArgs + self.sshUserHostArgs() + ['rm -rf '+rmString]
-        logging.debug('Remote command: '+ ' '.join(cmd))
-
+        cmd = self._buildSshCmd('rm -rf '+rmString)
         try:
             if not self.simulate:
                 subprocess.check_output(cmd, stderr=subprocess.PIPE)

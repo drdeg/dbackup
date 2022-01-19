@@ -12,6 +12,7 @@ from ..location import Location
 from ..helpers import getDynamicHost
 from ..helpers import SshError, ArgumentError
 from ..helpers import StateTracker
+from .. import SshArgs
 
 import dbackup.resultcodes
 
@@ -180,13 +181,13 @@ class Backup:
         # Assemble rsync arguments
         # ssh args are assembled in job class.
         # Remove 'ssh command' from argument list
-        rsyncSshArgsList = job.sshArgs[1:] if job.sshArgs[0] == 'ssh' else job.sshArgs
+        rsyncSshArgsList = list(job.sshArgs)
+        assert job.sshArgs.user
+        assert '-l' in rsyncSshArgsList
+        assert '-i' in rsyncSshArgsList
+        assert '-p' in rsyncSshArgsList
 
         assert job.cert is not None, "A certificate is required for remote locations"
-        if job.source.isRemote:
-            rsyncSshArgsList += ['-l', job.source.user]
-        elif job.dest.isRemote:
-            rsyncSshArgsList += ['-l', job.dest.user]
 
         # The ssh arguments are specified as a string where each argument is separated with a space
         rsyncSshArgs = ["--rsh=ssh "+' '.join(rsyncSshArgsList)+""]

@@ -5,7 +5,7 @@ import shutil
 
 class LocalLocation(Location):
 
-    def __init__(self, spec, dynamichost = None, sshArgs = None, simulate = False):
+    def __init__(self, spec, sshArgs = None, simulate = False):
         """
         Arguments:
             spec (str) :  path to location
@@ -13,7 +13,7 @@ class LocalLocation(Location):
         """
         #self.type = 'remote' if re.match(r'^[^@:]*@[^@:]*:.*$', spec) is not None else 'local'
 
-        super().__init__(spec, dynamichost, typeName='local', simulate=simulate)
+        super().__init__(spec, typeName='local', simulate=simulate)
 
         self.path = spec
 

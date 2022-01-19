@@ -14,7 +14,7 @@ class Location:
         user@host:path/to/location
 
     """
-    def __init__(self, spec, dynamichost = None, typeName = None, simulate = False):
+    def __init__(self, spec, typeName = None, simulate = False):
         self.spec = spec
         #self.type = 'remote' if re.match(r'^[^@:]*@[^@:]*:.*$', spec) is not None else 'local'
         self.typeName = typeName
